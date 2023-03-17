@@ -1,0 +1,7 @@
+{
+    whitelistedCodes:["rYjxqoMSXXdQRMeLsFCzsZU8iYiOa-TJGnsEf7GLVsg"],
+    blacklistedContracts:[],
+    arweaveGateway:"https://arweave.net",
+    arweaveGQL:"https://arweave-search.goldsky.com/graphql",
+    port:8181
+}
