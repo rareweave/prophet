@@ -1,5 +1,5 @@
 {
-    whitelistedCodes:["rYjxqoMSXXdQRMeLsFCzsZU8iYiOa-TJGnsEf7GLVsg"],
+    whitelistedCodes:["rYjxqoMSXXdQRMeLsFCzsZU8iYiOa-TJGnsEf7GLVsg","rEzHbCrVYZ4frj6u1W_Qr5Eij2ckG8Jv5H0o6QGfM-U"],
     blacklistedContracts:[],
     arweaveGateway:"https://arweave.net",
     arweaveGQL:"https://arweave-search.goldsky.com/graphql",
