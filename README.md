@@ -3,9 +3,9 @@ Prophet is very simple implementation of SmartWeave Delegated Resolution Environ
 
 Supports bundled (but indexed) interactions/contracts.
 
-Does NOT support contract queries yet (only telling state).
+Supports Warp Sequencer (as it seeds interactions to bundlr network)
 
-Does NOT support Warp Sequencer and EXM based contracts.
+Does NOT support contract queries yet (only telling state).
 
 Does NOT store cache (yet), only in memory
 
