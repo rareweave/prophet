@@ -32,6 +32,13 @@ module.exports = async function (fastify, opts) {
             remoteStateSyncEnabled: false
         })).readState()
         let time = Date.now()
-        return { "status": "evaluated", contractTxId: request.query.id, state: evalutionResult.cachedValue.state, sortKey: evalutionResult.sortKey, timestamp: new Date(time).toDateString(), stateHash: contract.stateHash }
+        return {
+            "status": "evaluated",
+            contractTxId: request.query.id,
+            state: evalutionResult.cachedValue.state,
+            sortKey: evalutionResult.sortKey,
+            timestamp: new Date(time).getFullYear() + '-' + new Date(time).getMonth() + '-' + new Date(time).getDay() + ' ' + new Date(time).getHours() + ':' + new Date(time).getMinutes() + ':' + new Date(time).getSeconds(),
+            stateHash: contract.stateHash
+        }
     })
 }
