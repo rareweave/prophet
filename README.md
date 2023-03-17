@@ -16,6 +16,7 @@ You need Node.js 16+
 ```sh
 git clone https://github.com/rareweave/prophet prophet
 cd prophet
+yarn
 ```
 Now open `config.json5` in convenient file editor and insert contracts codes you want to allow there, configure gateways.
 
