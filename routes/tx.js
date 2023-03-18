@@ -6,8 +6,16 @@ module.exports = async function (fastify, opts) {
     fastify.get('/tx/:id', async function (request, reply) {
         let txheaders = await fetchTxHeaders(request.params.id);
         if (!txheaders || !txheaders?.id) {
-            reply.status(404)
-            return { error: "Tx not found" }
+            let txFromWarp = await fetch(`https://gateway.warp.cc/gateway/contract?txId=${request.params.id}`)
+            let txFromWarpContent = await txFromWarp.json().catch(res => ({ message: "Error fetching from warp" }))
+
+            if (txFromWarpContent.message || txFromWarp.status == 404) {
+                reply.status(404)
+                return { error: "Tx not found" }
+            } else {
+                return txFromWarpContent.contractTx
+            }
+
         }
         return {
             format: 2,

@@ -9,7 +9,7 @@ module.exports = async function (fastify, opts) {
         let tx = await fetch(config.arweaveGQL, { method: request.method, body: JSON.stringify(request.body), headers: { "Content-type": "application/json" } }).catch(e => console.log(e)).then(res => res.json())
 
         if (tx?.data?.transactions?.edges) {
-            tx.data.transactions.edges = tx.data.transactions?.edges.map(edge => ({ node: { ...edge.node, bundledIn: { id: null }, parent: { id: null }, block: { height: weaveInfo.height, id: "UNSETTLED", timestamp: Date.now() } }, cursor: edge.cursor })) // warp discriminates bundled transactions
+            tx.data.transactions.edges = tx.data.transactions?.edges.map(edge => ({ node: { ...edge.node, bundledIn: { id: null }, parent: { id: null }, block: edge.node.block || { height: weaveInfo.height, id: "UNSETTLED", timestamp: Date.now() } }, cursor: edge.cursor })) // warp discriminates bundled transactions
         }
 
         return tx
