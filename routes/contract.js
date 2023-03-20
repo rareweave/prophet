@@ -10,35 +10,41 @@ const arweave = Arweave.init({
     port: config.port,
     protocol: "http"
 })
-const warp = WarpFactory.forMainnet({
-    inMemory: true,
-}, true, arweave)
+const thirdEm = require("@three-em/node/index")
 module.exports = async function (fastify, opts) {
 
     fastify.get('/contract', async function (request, reply) {
+        if (!request.query.id) {
+            reply.status(404)
+            return { error: "No contract specified" }
+        }
         let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.id}`).then(res => res.json()).catch(e => null)
         if (!contractInitTx || contractInitTx.error || !contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url"))) {
             reply.status(404)
             return { error: "No contract found" }
         }
+        if (!config.whitelistedCodes.includes(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString())) {
+            reply.status(401)
+            return { error: "This contract code isn't whitelisted" }
+        }
+        console.log(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url")).value, 'base64url').toString())
+        let contractCode = await fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.text()).catch(e => console.log(e))
 
-        if (!config.whitelistedCodes.includes(Buffer.from(contractInitTx.tags.find(c => c.name == Buffer.from("Contract-Src").toString("base64url")).value, "base64url").toString("utf8"))) {
-            reply.status(403)
-            return { error: "Code of this contract is not whitelisted for execution by this node" }
-        }
-        let contract = warp.contract(request.query.id)
-        let evalutionResult = await (contract.setEvaluationOptions({
-            unsafeClient: "allow", waitForConfirmation: false, //we are using anchoring
-            remoteStateSyncEnabled: false
-        })).readState()
-        let time = Date.now()
-        return {
-            "status": "evaluated",
-            contractTxId: request.query.id,
-            state: evalutionResult.cachedValue.state,
-            sortKey: evalutionResult.sortKey,
-            timestamp: new Date(time).getFullYear() + '-' + new Date(time).getMonth() + '-' + new Date(time).getDay() + ' ' + new Date(time).getHours() + ':' + new Date(time).getMinutes() + ':' + new Date(time).getSeconds(),
-            stateHash: contract.stateHash
-        }
+        console.log(await thirdEm.simulateContract({
+            contractId: request.query.id,
+            maybeContractSource: { contractType: 0, contractSrc: Buffer.from(contractCode) },
+            interactions: [],
+            contractInitState: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url")).value, 'base64url').toString(),
+            maybeConfig: {
+                host: "127.0.0.1",
+                port: 8181,
+                protocol: "http",
+            },
+            maybeCache: false,
+            maybeBundledContract: false,
+            maybeSettings: null,
+            maybeExmContext: {}
+
+        }))
     })
 }
