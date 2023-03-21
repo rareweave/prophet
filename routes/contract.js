@@ -8,47 +8,54 @@ const arweave = Arweave.init({
     port: config.port,
     protocol: "http"
 })
-const warp = WarpFactory.forMainnet({
-    inMemory: true,
-}, true, arweave)
+const thirdEm = require("@three-em/node/index")
 module.exports = async function (fastify, opts) {
-    fastify.get('/contract', async function (request, reply) {
-        try {
-            const contractInitTxRes = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.id}`);
-            if (!contractInitTxRes.ok) {
-                throw new Error(`Failed to fetch contract initialization transaction: ${contractInitTxRes.statusText}`);
-            }
-            const contractInitTx = await contractInitTxRes.json();
-            const contractSrcTag = contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url"));
-            if (!contractSrcTag) {
-                reply.status(404);
-                return { error: "No contract found" };
-            }
-            const contractSrc = Buffer.from(contractSrcTag.value, "base64url").toString("utf8");
-            if (!config.whitelistedCodes.includes(contractSrc)) {
-                reply.status(403);
-                return { error: "Code of this contract is not whitelisted for execution by this node" };
-            }
-            const contract = warp.contract(request.query.id);
-            const evaluationResult = await contract.setEvaluationOptions({
-                unsafeClient: "allow",
-                waitForConfirmation: false,
-                remoteStateSyncEnabled: false
-            }).readState();
-            const stateHash = await contract.getStateHash();
-            let time = Date.now()
-            return {
-                status: "evaluated",
-                contractTxId: request.query.id,
-                state: evaluationResult.cachedValue.state,
-                sortKey: evaluationResult.sortKey,
-                timestamp: new Date(time).getFullYear() + '-' + new Date(time).getMonth() + '-' + new Date(time).getDay() + ' ' + new Date(time).getHours() + ':' + new Date(time).getMinutes() + ':' + new Date(time).getSeconds(),
-                stateHash: stateHash
-            };
-        } catch (e) {
-            console.error(`Error processing contract evaluation request: ${e.message}`);
-            reply.status(500);
-            return { error: "Internal server error" };
+
+    fastify.get('/contract', { description: 'Get information about a whitelisted contract' }, async function (request, reply) {
+        if (!request.query.id) {
+            reply.status(400)
+            return { error: "Missing contract ID" }
         }
-    });
-};
+        try {
+            const contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.id}`).then(res => res.json())
+            const contractSrcTag = contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url"))
+            if (!contractInitTx || contractInitTx.error || !contractSrcTag) {
+                reply.status(404)
+                return { error: "No contract found" }
+            }
+            const contractCode = await fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractSrcTag.value, 'base64url').toString()}`).then(res => res.text())
+            if (!config.whitelistedCodes.includes(Buffer.from(contractSrcTag.value, 'base64url').toString())) {
+                reply.status(401)
+                return { error: "This contract code isn't whitelisted" }
+            }
+            const initStateTag = contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url"))
+            const contractInitState = initStateTag ? Buffer.from(initStateTag.value, 'base64url').toString() : ''
+            const simulationResult = await thirdEm.simulateContract({
+                contractId: request.query.id,
+                maybeContractSource: { contractType: 0, contractSrc: Buffer.from(contractCode) },
+                interactions: [],
+                contractInitState,
+                maybeConfig: {
+                    host: "127.0.0.1",
+                    port: 8181,
+                    protocol: "http",
+                },
+                maybeCache: false,
+                maybeBundledContract: false,
+                maybeSettings: null,
+                maybeExmContext: {}
+
+            })
+            return {
+                contractId: request.query.id,
+                contractCode,
+                contractInitState,
+                simulationResult,
+            }
+        } catch (err) {
+            console.error(err)
+            reply.status(500)
+            return { error: "Internal server error" }
+        }
+    })
+}
