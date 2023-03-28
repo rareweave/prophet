@@ -34,7 +34,11 @@ module.exports = fp(async function (fastify, opts) {
     }
     transactions = await Promise.all(transactions.filter(tx => !warpSequencerTxs.find(wtx => wtx.id == tx.id)).map(async tx => {
 
-      return { ...tx, sortKey: `${tx.block.height.toString().padStart(12, "0")},0000000000000000,${Buffer.from(await arweave.crypto.hash(arweave.utils.concatBuffers([arweave.utils.b64UrlToBuffer(tx.block.id), arweave.utils.b64UrlToBuffer(tx.id)]))).toString("hex")}` }
+      return {
+        ...tx,
+        sortKey: `${tx.block.height.toString().padStart(12, "0")},0000000000000000,${Buffer.from(await arweave.crypto.hash(arweave.utils.concatBuffers([arweave.utils.b64UrlToBuffer(tx.block.id), arweave.utils.b64UrlToBuffer(tx.id)]))).toString("hex")}`,
+        confirmationStatus: "confirmed"
+      }
     }))
     warpSequencerTxs.unshift(...transactions)
     return warpSequencerTxs

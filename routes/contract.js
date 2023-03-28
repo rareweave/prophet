@@ -62,7 +62,7 @@ module.exports = async function (fastify, opts) {
 
         return {
             "paging": { "total": interactions.length, "limit": 5000, "items": interactions.length, "page": 1, "pages": 1 },
-            interactions: interactions.map(i => ({ "status": "confirmed", "confirming_peers": "51.159.210.149", "confirmations": "1", interaction: i }))
+            interactions: interactions
         }
 
 
