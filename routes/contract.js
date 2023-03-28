@@ -12,7 +12,7 @@ const arweave = Arweave.init({
 })
 const thirdEm = require("@three-em/node/index")
 module.exports = async function (fastify, opts) {
-    fastify.get('/gateway/contract/', async function (request, reply) {
+    fastify.get('/gateway/contract', async function (request, reply) {
         if (!request.query.txId) {
             reply.status(404)
             return { error: "No contract specified" }
