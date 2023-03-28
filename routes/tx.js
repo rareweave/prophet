@@ -30,8 +30,8 @@ module.exports = async function (fastify, opts) {
             data_tree: [],
             data_root: "",
             tags: encodeTags(txheaders.tags),
-            reward: txheaders.fee.winston
-
+            reward: txheaders.fee.winston,
+            bundlerTxId: null
         }
     })
 }
