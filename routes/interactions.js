@@ -4,18 +4,19 @@ const { Readable } = require("stream")
 const config = require("json5").parse(fs.readFileSync("./config.json5"))
 module.exports = async function (fastify, opts) {
     fastify.get('/interactions/:id', async function (request, reply) {
-        let interactionsFromCache = await this.level.interactions.get(request.params.id).catch(e => [])
-        let since = interactionsFromCache.length ? interactionsFromCache[interactionsFromCache.length - 1]?.block : null
+        console.log(fastify.db)
+        // let interactionsFromCache = await this.level.interactions.get(request.params.id).catch(e => [])
+        // let since = interactionsFromCache.length ? interactionsFromCache[interactionsFromCache.length - 1]?.block : null
 
-        let interactionsFromGateway = await fetchInteractions(request.params.id, since)
-        let interactionsToPutInCache = interactionsFromGateway.filter(interaction => interaction.block && interaction.block.id != "PENDING")
-        await this.level.interaction.batch(interactionsToPutInCache.map(i => ({ type: "put", key: i.id, value: i })))
-        interactionsToPutInCache = interactionsToPutInCache.map(i => ({ id: i.id, block: i.block.height }))
-        await this.level.interactions.put(request.params.id, [...interactionsFromCache, ...new Map(interactionsToPutInCache.map(i => [i.id, i])).values()])
+        // let interactionsFromGateway = await fetchInteractions(request.params.id, since)
+        // let interactionsToPutInCache = interactionsFromGateway.filter(interaction => interaction.block && interaction.block.id != "PENDING")
+        // await this.level.interaction.batch(interactionsToPutInCache.map(i => ({ type: "put", key: i.id, value: i })))
+        // interactionsToPutInCache = interactionsToPutInCache.map(i => ({ id: i.id, block: i.block.height }))
+        // await this.level.interactions.put(request.params.id, [...interactionsFromCache, ...new Map(interactionsToPutInCache.map(i => [i.id, i])).values()])
 
-        return {
-            edges: [...new Map([...(await Promise.all(interactionsFromCache.map(i => this.level.interaction.get(i.id)))).map(i => [i.id, i]), ...interactionsFromGateway.map(i => [i.id, i])]).values()]
-        }
+        // return {
+        //     edges: [...new Map([...(await Promise.all(interactionsFromCache.map(i => this.level.interaction.get(i.id)))).map(i => [i.id, i]), ...interactionsFromGateway.map(i => [i.id, i])]).values()]
+        // }
     })
 }
 

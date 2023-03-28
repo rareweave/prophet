@@ -13,12 +13,12 @@ const arweave = Arweave.init({
 const thirdEm = require("@three-em/node/index")
 module.exports = async function (fastify, opts) {
 
-    fastify.get('/contract', async function (request, reply) {
-        if (!request.query.id) {
+    fastify.get('/gateway/v2/interactions-sort-key', async function (request, reply) {
+        if (!request.query.contractId) {
             reply.status(404)
             return { error: "No contract specified" }
         }
-        let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.id}`).then(res => res.json()).catch(e => null)
+        let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.contractId}`).then(res => res.json()).catch(e => null)
         if (!contractInitTx || contractInitTx.error || !contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url"))) {
             reply.status(404)
             return { error: "No contract found" }
@@ -29,22 +29,31 @@ module.exports = async function (fastify, opts) {
         }
         console.log(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url")).value, 'base64url').toString())
         let contractCode = await fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.text()).catch(e => console.log(e))
+        let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
+        let interactions = await fastify.syncToSecureHeight(request.query.contractId, null)
 
-        console.log(await thirdEm.simulateContract({
-            contractId: request.query.id,
-            maybeContractSource: { contractType: 0, contractSrc: Buffer.from(contractCode) },
-            interactions: [],
-            contractInitState: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url")).value, 'base64url').toString(),
-            maybeConfig: {
-                host: "127.0.0.1",
-                port: 8181,
-                protocol: "http",
-            },
-            maybeCache: false,
-            maybeBundledContract: false,
-            maybeSettings: null,
-            maybeExmContext: {}
+        return {
+            "paging": { "total": interactions.length, "limit": 5000, "items": interactions.length, "page": 1, "pages": 1 },
+            interactions: interactions.map(i => ({ "status": "confirmed", "confirming_peers": "51.159.210.149", "confirmations": "1", interaction: i }))
+        }
 
-        }))
+
+
+        // console.log(await thirdEm.simulateContract({
+        //     contractId: request.query.id,
+        //     maybeContractSource: { contractType: 0, contractSrc: Buffer.from(contractCode) },
+        //     interactions: [],
+        //     contractInitState: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url")).value, 'base64url').toString(),
+        //     maybeConfig: {
+        //         host: "127.0.0.1",
+        //         port: 8181,
+        //         protocol: "http",
+        //     },
+        //     maybeCache: false,
+        //     maybeBundledContract: false,
+        //     maybeSettings: null,
+        //     maybeExmContext: {}
+
+        // }))
     })
 }
