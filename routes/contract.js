@@ -101,7 +101,7 @@ module.exports = async function (fastify, opts) {
                 contractTxId: request.query.id,
                 manifest: contractInfo.manifest,
                 state,
-                sourceId: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString(),
+                sourceId: contractInfo.srcTxId,
                 timestamp: Date.now()
             })
         }
