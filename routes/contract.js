@@ -10,8 +10,16 @@ const arweave = Arweave.init({
     port: config.port,
     protocol: "http"
 })
-const thirdEm = require("@three-em/node/index")
+
 module.exports = async function (fastify, opts) {
+    const warp = WarpFactory.forMainnet({
+
+        inMemory: true,
+    }, false, arweave)
+    warp.definitionLoader.baseUrl = `http://localhost:${config.port}`
+    warp.interactionsLoader.delegate.baseUrl = `http://localhost:${config.port}`
+
+
     fastify.get('/gateway/contract', async function (request, reply) {
         if (!request.query.txId) {
             reply.status(404)
@@ -30,6 +38,8 @@ module.exports = async function (fastify, opts) {
 
         let contractCode = await fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.text()).catch(e => console.log(e))
         // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
+
+
         return {
             bundlerTxId: null,
             contractTx: { tags: contractInitTx.tags },
@@ -41,6 +51,63 @@ module.exports = async function (fastify, opts) {
             srcTx: contractCodeTx,
             srcTxId: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()
         }
+    })
+    fastify.get('/index', async function (request, reply) {
+
+        if (!request.query.id) {
+            reply.status(404)
+            return { error: "No contract specified" }
+        }
+        reply.send("Scheduled")
+
+
+
+        let cache = (await fastify.db.select("cachedState:`" + request.query.id + "`").catch(e => { console.log(e); return [] }))[0]
+
+        if (!cache) {
+            let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.id}`).then(res => res.json()).catch(e => null)
+            if (!contractInitTx || contractInitTx.error || !contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url"))) {
+
+                return
+            }
+            if (!config.whitelistedCodes.includes(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString())) {
+
+                return
+            }
+            let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))       // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
+
+            let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
+                unsafeClient: "allow", waitForConfirmation: false,
+            });
+            let state = (await contractInstance.readState()).cachedValue.state
+
+            await fastify.db.create("cachedState:`" + request.query.id + "`", {
+                "status": "evaluated",
+                contractTxId: request.query.id,
+                manifest: contractInfo.manifest,
+                state,
+                sourceId: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString(),
+                timestamp: Date.now()
+            })
+        } else if ((Date.now() - cache?.timestamp) > 300000) {
+            let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))       // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
+
+            let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
+                unsafeClient: "allow", waitForConfirmation: false,
+            });
+            let state = (await contractInstance.readState()).cachedValue.state
+            await fastify.db.update("cachedState:`" + request.query.id + "`", {
+                "status": "evaluated",
+                contractTxId: request.query.id,
+                manifest: contractInfo.manifest,
+                state,
+                sourceId: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString(),
+                timestamp: Date.now()
+            })
+        }
+
+
+
     })
     fastify.get('/gateway/v2/interactions-sort-key', async function (request, reply) {
         if (!request.query.contractId) {
