@@ -72,7 +72,7 @@ module.exports = async function (fastify, opts) {
 
 
 
-        let cache = (await fastify.db.select("cachedState:`" + request.query.id + "`").catch(e => { console.log(e); return [] }))[0]
+        let cache = (await fastify.db.select("nfts:`" + request.query.id + "`").catch(e => { console.log(e); return [] }))[0]
 
         if (!cache) {
             let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.id}`).then(res => res.json()).catch(e => null)
@@ -80,7 +80,7 @@ module.exports = async function (fastify, opts) {
 
                 return
             }
-            if (!config.whitelistedCodes.includes(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString())) {
+            if (!config.nftSrcIds.includes(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString())) {
 
                 return
             }
@@ -93,7 +93,7 @@ module.exports = async function (fastify, opts) {
             let ownerMetaweaveAccount = await accountTools.get(state.owner)
             let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).then(res => res.json()))?.domain
 
-            await fastify.db.create("cachedState:`" + request.query.id + "`", {
+            await fastify.db.create("nfts:`" + request.query.id + "`", {
                 "status": "evaluated",
                 contractTxId: request.query.id,
                 manifest: contractInfo.manifest,
@@ -113,7 +113,7 @@ module.exports = async function (fastify, opts) {
             let ownerMetaweaveAccount = await accountTools.get(state.owner)
             let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).then(res => res.json()))?.domain
 
-            await fastify.db.update("cachedState:`" + request.query.id + "`", {
+            await fastify.db.update("nfts:`" + request.query.id + "`", {
                 "status": "evaluated",
                 contractTxId: request.query.id,
                 manifest: contractInfo.manifest,

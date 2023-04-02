@@ -24,9 +24,8 @@ module.exports = async function (fastify, opts) {
         let ownedBy = JSON.parse(JSON.stringify(`"${request.query.ownedBy}"`))
         let search = JSON.parse(JSON.stringify(`"${request.query.search}"`))
 
-        console.log(`SELECT contractTxId, timestamp , state, owner FROM cachedState WHERE ${JSON.stringify(config.nftSrcIds)
-            } CONTAINS sourceId ${ownedBy ? 'AND state.owner = ' + ownedBy : ''} ${search ? 'AND state.description ~ "square"' : ''} LIMIT 100;`)
-        return (await fastify.db.query(`SELECT contractTxId, timestamp, state, owner FROM cachedState WHERE ${JSON.stringify(config.nftSrcIds)
+
+        return (await fastify.db.query(`SELECT contractTxId, timestamp, state, owner FROM nfts WHERE ${JSON.stringify(config.nftSrcIds)
             } CONTAINS sourceId ${request.query.ownedBy ? 'AND state.owner = ' + ownedBy : ''} 
             ${request.query.search ? 'AND (state.description ~ ' + search + ' OR state.name ~ ' + search + ')' : ''}
             ${request.query.forSaleOnly ? 'AND state.forSale = true' : ''} ORDER BY timestamp DESC LIMIT 100;`))[0]
