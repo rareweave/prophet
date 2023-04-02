@@ -16,8 +16,8 @@ module.exports = async function (fastify, opts) {
 
         inMemory: true,
     }, false, arweave)
-    warp.definitionLoader.baseUrl = `http://localhost:${config.port}`
-    warp.interactionsLoader.delegate.baseUrl = `http://localhost:${config.port}`
+    warp.definitionLoader.baseUrl = `http://127.0.0.1:${config.port}`
+    warp.interactionsLoader.delegate.baseUrl = `http://127.0.0.1:${config.port}`
 
 
     fastify.get('/nfts', async function (request, reply) {

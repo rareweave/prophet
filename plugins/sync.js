@@ -23,7 +23,7 @@ module.exports = fp(async function (fastify, opts) {
     let pageInfo = { hasNextPage: true }
     let transactions = []
     while (pageInfo.hasNextPage) {
-      let gqlreply = await fetch('http://localhost:' + config.port + '/graphql', txQuery(fetchHeight, [["Contract", id]])).then(res => res.json()).catch(e => pageInfo.hasNextPage = false)
+      let gqlreply = await fetch('http://127.0.0.1:' + config.port + '/graphql', txQuery(fetchHeight, [["Contract", id]])).then(res => res.json()).catch(e => pageInfo.hasNextPage = false)
       console.log(JSON.parse(txQuery(fetchHeight, [["Contract", id]]).body).query)
       pageInfo = gqlreply.data.transactions.pageInfo
       // let timestamps = await fetch('https://node2.bundlr.network/graphql', bundlrTimestampsQuery(gqlreply.data.transactions.edges.map(node => node.node.id))).then(res => res.json()).catch(e => [])

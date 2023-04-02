@@ -38,7 +38,7 @@ module.exports = async function (fastify, opts) {
 async function fetchTxHeaders(id) {
 
 
-    let gqlreply = await fetch('http://localhost:' + config.port + '/graphql', {
+    let gqlreply = await fetch('http://127.0.0.1:' + config.port + '/graphql', {
         method: "POST", headers: { "Content-type": "application/json" },
         body: JSON.stringify({
             operationName: null,

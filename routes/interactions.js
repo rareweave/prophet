@@ -24,7 +24,7 @@ async function fetchInteractions(id, since) {
     let pageInfo = { hasNextPage: true }
     let edges = []
     while (pageInfo.hasNextPage) {
-        let gqlreply = await fetch('http://localhost:' + config.port + '/graphql', {
+        let gqlreply = await fetch('http://127.0.0.1:' + config.port + '/graphql', {
             method: "POST", headers: { "Content-type": "application/json" },
             body: JSON.stringify({
                 query, variables: {
