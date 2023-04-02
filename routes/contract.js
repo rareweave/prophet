@@ -13,7 +13,7 @@ const arweave = Arweave.init({
 })
 
 module.exports = async function (fastify, opts) {
-    const accountTools = new Account({
+    const accountTools = new Account.default({
         cacheIsActivated: true,
         cacheSize: 100,
         cacheTime: 60,
