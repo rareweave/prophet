@@ -26,6 +26,7 @@
     "fastify": "^4.0.0",
     "fastify-cli": "^4.4.0",
     "fastify-plugin": "^3.0.0",
+    "ipx": "^1.0.0",
     "isomorphic-fetch": "^3.0.0",
     "json5": "^2.2.3",
     "level": "^8.0.0",
