@@ -22,6 +22,7 @@
     "@three-em/node": "^0.3.21",
     "ardb": "^1.1.10",
     "arweave": "^1.13.3",
+    "arweave-account": "^1.3.6",
     "fastify": "^4.0.0",
     "fastify-cli": "^4.4.0",
     "fastify-plugin": "^3.0.0",

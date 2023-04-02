@@ -3,6 +3,7 @@
 const fs = require("fs")
 const { fetch } = require("undici")
 const Arweave = require("arweave")
+const Account = require("arweave-account");
 const { WarpFactory, ContractDefinitionLoader } = require("warp-contracts")
 const config = require("json5").parse(fs.readFileSync("./config.json5"))
 const arweave = Arweave.init({
@@ -12,6 +13,16 @@ const arweave = Arweave.init({
 })
 
 module.exports = async function (fastify, opts) {
+    const accountTools = new Account({
+        cacheIsActivated: true,
+        cacheSize: 100,
+        cacheTime: 60,
+        gateway: {
+            host: "127.0.0.1",
+            port: config.port,
+            protocol: "http"
+        }
+    })
     const warp = WarpFactory.forMainnet({
 
         inMemory: true,
@@ -38,7 +49,6 @@ module.exports = async function (fastify, opts) {
 
         let contractCode = await fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.text()).catch(e => console.log(e))
         // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
-
 
         return {
             bundlerTxId: null,
@@ -80,12 +90,16 @@ module.exports = async function (fastify, opts) {
                 unsafeClient: "allow", waitForConfirmation: false,
             });
             let state = (await contractInstance.readState()).cachedValue.state
+            let ownerMetaweaveAccount = await accountTools.get(state.owner)
+            let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).then(res => res.json()))?.domain
 
             await fastify.db.create("cachedState:`" + request.query.id + "`", {
                 "status": "evaluated",
                 contractTxId: request.query.id,
                 manifest: contractInfo.manifest,
                 state,
+                owner: { address: ownerMetaweaveAccount.addr, account: ownerMetaweaveAccount, ansName: ownerAnsName },
+
                 sourceId: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString(),
                 timestamp: Date.now()
             })
@@ -96,10 +110,15 @@ module.exports = async function (fastify, opts) {
                 unsafeClient: "allow", waitForConfirmation: false,
             });
             let state = (await contractInstance.readState()).cachedValue.state
+            let ownerMetaweaveAccount = await accountTools.get(state.owner)
+            let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).then(res => res.json()))?.domain
+
             await fastify.db.update("cachedState:`" + request.query.id + "`", {
                 "status": "evaluated",
                 contractTxId: request.query.id,
                 manifest: contractInfo.manifest,
+                owner: { address: ownerMetaweaveAccount.addr, account: ownerMetaweaveAccount, ansName: ownerAnsName },
+
                 state,
                 sourceId: contractInfo.srcTxId,
                 timestamp: Date.now()
