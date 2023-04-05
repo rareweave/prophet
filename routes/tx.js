@@ -4,7 +4,10 @@ const { Readable } = require("stream")
 const config = require("json5").parse(fs.readFileSync("./config.json5"))
 module.exports = async function (fastify, opts) {
     fastify.get('/tx/:id', async function (request, reply) {
+        let cache = (await fastify.db.select("txMetaCache:`" + request.params.id + "`").catch(e => { console.log(e); return [] }))[0]
+        if (cache) { return { ...cache, id: request.params.id } }
         let txheaders = await fetchTxHeaders(request.params.id);
+
         if (!txheaders || !txheaders?.id) {
             let txFromWarp = await fetch(`https://gateway.warp.cc/gateway/contract?txId=${request.params.id}`)
             let txFromWarpContent = await txFromWarp.json().catch(res => ({ message: "Error fetching from warp" }))
@@ -17,6 +20,22 @@ module.exports = async function (fastify, opts) {
             }
 
         }
+        await fastify.db.create("txMetaCache:`" + request.params.id + "`", {
+            format: 2,
+            id: txheaders?.id,
+            last_tx: "",
+            owner: txheaders.owner.key,
+            signature: txheaders.signature,
+            target: txheaders.recipient,
+            data: "",
+            quantity: txheaders.quantity.winston,
+            data_size: txheaders.data.size,
+            data_tree: [],
+            data_root: "",
+            tags: encodeTags(txheaders.tags),
+            reward: txheaders.fee.winston,
+            bundlerTxId: null
+        })
         return {
             format: 2,
             id: txheaders?.id,
