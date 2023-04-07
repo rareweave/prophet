@@ -6,7 +6,6 @@ module.exports = async function (fastify, opts) {
 
     let ipx = createIPX({ domains: config.imageOptimizationDomains })
     fastify.get("/_ipx/*", async (req, resp) => {
-        console.log(req.headers)
         let ipxResponse = await handleRequest({ url: req.url.slice('/_ipx'.length), headers: req.headers }, ipx)
         resp.headers(ipxResponse.headers)
         resp.code(ipxResponse.statusCode)

@@ -24,7 +24,7 @@ module.exports = fp(async function (fastify, opts) {
     let transactions = []
     while (pageInfo.hasNextPage) {
       let gqlreply = await fetch('http://localhost:' + config.port + '/graphql', txQuery(fetchHeight, [["Contract", id]])).then(res => res.json()).catch(e => pageInfo.hasNextPage = false)
-      console.log(JSON.parse(txQuery(fetchHeight, [["Contract", id]]).body).query)
+
       pageInfo = gqlreply.data.transactions.pageInfo
       // let timestamps = await fetch('https://node2.bundlr.network/graphql', bundlrTimestampsQuery(gqlreply.data.transactions.edges.map(node => node.node.id))).then(res => res.json()).catch(e => [])
       // timestamps = Object.fromEntries(timestamps.data.transactions.edges.map(ts => [ts.node.id, ts.node.timestamp]))
@@ -80,8 +80,24 @@ module.exports = fp(async function (fastify, opts) {
     // return transactions
 
   }
+  async function useTimedCache(id, type, cacheBringer, time = null) {
+    if (!id || !cacheBringer) { return null }
+    let cache = (await fastify.db.select(type + ":`" + id + "`").catch(e => { console.log(e); return [] }))[0]
+    if (!cache) {
+      let freshResult = await cacheBringer()
+      fastify.db.create(type + ":`" + id + "`", { ...freshResult, timestamp: Date.now() }).catch(e => { console.log(e); return null })
+      return freshResult
+    } else if (time && ((Date.now() - cache?.timestamp) > time)) {
+      let freshResult = await cacheBringer()
+      fastify.db.update(type + ":`" + id + "`", { ...freshResult, timestamp: Date.now() }).catch(e => { console.log(e); return null })
+      return freshResult
+    } else {
+      return cache
+    }
+  }
 
   fastify.decorate("syncToSecureHeight", syncToSecureHeight)
+  fastify.decorate("timedCache", useTimedCache)
 })
 const txQuery = (min, tags) => {
   return {

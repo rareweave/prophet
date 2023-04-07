@@ -45,6 +45,10 @@ module.exports = async function (fastify, opts) {
             reply.status(401)
             return { error: "This contract code isn't whitelisted" }
         }
+        let initState = contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url"))?.value ?
+            JSON.parse(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url"))?.value, 'base64url').toString()) :
+            await fetch(`http://127.0.0.1:${config.port}/${request.query.txId}`).then(res => res.json()).catch(e => null)
+
         let contractCodeTx = await fetch(`http://127.0.0.1:${config.port}/tx/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.json()).catch(e => console.log(e))
 
         let contractCode = await fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.text()).catch(e => console.log(e))
@@ -53,7 +57,7 @@ module.exports = async function (fastify, opts) {
         return {
             bundlerTxId: null,
             contractTx: { tags: contractInitTx.tags },
-            initState: JSON.parse(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url")).value, 'base64url').toString()),
+            initState,
             manifest: contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Manifest").toString("base64url")) ?
                 JSON.parse(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Manifest").toString("base64url")).value, 'base64url').toString()) : null,
             txId: request.query.txId,
@@ -74,58 +78,55 @@ module.exports = async function (fastify, opts) {
 
             return
         }
-        if (!config.nftSrcIds.includes(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString())) {
+        let codeId = Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()
+        if (config.nftSrcIds.includes(codeId)) {
+            await fastify.timedCache(request.query.id, "nfts", async () => {
 
-            return
+                let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))       // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
+
+                let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
+                    unsafeClient: "allow", waitForConfirmation: false,
+                });
+                let state = (await contractInstance.readState()).cachedValue.state
+                let ownerMetaweaveAccount = await accountTools.get(state.owner)
+                let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).then(res => res.json()))?.domain
+
+                return {
+                    "status": "evaluated",
+                    contractTxId: request.query.id,
+                    manifest: contractInfo.manifest,
+                    state,
+                    owner: { address: ownerMetaweaveAccount.addr, account: ownerMetaweaveAccount, ansName: ownerAnsName },
+
+                    sourceId: codeId,
+
+                }
+            }, 300000)
+
         }
+    })
 
-
-        let cache = (await fastify.db.select("nfts:`" + request.query.id + "`").catch(e => { console.log(e); return [] }))[0]
-
-        if (!cache) {
-
-            let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))       // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
-
-            let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
-                unsafeClient: "allow", waitForConfirmation: false,
-            });
-            let state = (await contractInstance.readState()).cachedValue.state
-            let ownerMetaweaveAccount = await accountTools.get(state.owner)
-            let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).then(res => res.json()))?.domain
-
-            await fastify.db.create("nfts:`" + request.query.id + "`", {
-                "status": "evaluated",
-                contractTxId: request.query.id,
-                manifest: contractInfo.manifest,
-                state,
-                owner: { address: ownerMetaweaveAccount.addr, account: ownerMetaweaveAccount, ansName: ownerAnsName },
-
-                sourceId: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString(),
-                timestamp: Date.now()
-            })
-        } else if ((Date.now() - cache?.timestamp) > 300000) {
-            let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))       // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
-
-            let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
-                unsafeClient: "allow", waitForConfirmation: false,
-            });
-            let state = (await contractInstance.readState()).cachedValue.state
-            let ownerMetaweaveAccount = await accountTools.get(state.owner)
-            let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).then(res => res.json()))?.domain
-
-            await fastify.db.update("nfts:`" + request.query.id + "`", {
-                "status": "evaluated",
-                contractTxId: request.query.id,
-                manifest: contractInfo.manifest,
-                owner: { address: ownerMetaweaveAccount.addr, account: ownerMetaweaveAccount, ansName: ownerAnsName },
-
-                state,
-                sourceId: contractInfo.srcTxId,
-                timestamp: Date.now()
-            })
+    fastify.get('/contract', async (request, reply) => {
+        if (!request.query.id) {
+            reply.status(404)
+            return { error: "No contract specified" }
         }
+        let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))
+        if (!contractInfo) { return "Error fetching contract" }
+        let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
+            unsafeClient: "allow", waitForConfirmation: false,
+        });
+        let state = await contractInstance.readState()
+        return {
+            "status": "evaluated",
+            contractTxId: request.query.id,
+            manifest: contractInfo.manifest,
+            state: state.cachedValue.state,
+            sortKey: state.sortKey,
+            stateHash: await contractInstance.stateHash(state.cachedValue.state),
+            sourceId: contractInfo.srcTxId,
 
-
+        }
 
     })
     fastify.get('/gateway/v2/interactions-sort-key', async function (request, reply) {
