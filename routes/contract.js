@@ -129,64 +129,26 @@ module.exports = async function (fastify, opts) {
             reply.status(404)
             return { error: "No contract specified" }
         }
-        let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))
-        if (!contractInfo) { return "Error fetching contract" }
-        let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
-            unsafeClient: "allow", waitForConfirmation: false,
-        });
-        let state = await contractInstance.readState()
-        return {
-            "status": "evaluated",
-            contractTxId: request.query.id,
-            manifest: contractInfo.manifest,
-            state: state.cachedValue.state,
-            sortKey: state.sortKey,
-            stateHash: await contractInstance.stateHash(state.cachedValue.state),
-            sourceId: contractInfo.srcTxId,
+        return await fastify.timedCache(request.query.id, "contract", async () => {
+            let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))
+            if (!contractInfo) { return "Error fetching contract" }
+            let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
+                unsafeClient: "allow", waitForConfirmation: false,
+            });
+            let state = await contractInstance.readState()
+            return {
+                "status": "evaluated",
+                contractTxId: request.query.id,
+                manifest: contractInfo.manifest,
+                state: state.cachedValue.state,
+                sortKey: state.sortKey,
+                stateHash: await contractInstance.stateHash(state.cachedValue.state),
+                sourceId: contractInfo.srcTxId,
 
-        }
+            }
+        }, 50000)
+
 
     })
-    fastify.get('/gateway/v2/interactions-sort-key', async function (request, reply) {
-        if (!request.query.contractId) {
-            reply.status(404)
-            return { error: "No contract specified" }
-        }
-        let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.contractId}`).then(res => res.json()).catch(e => null)
-        if (!contractInitTx || contractInitTx.error || !contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url"))) {
-            reply.status(404)
-            return { error: "No contract found" }
-        }
-        if (!config.whitelistedCodes.includes(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString())) {
-            reply.status(401)
-            return { error: "This contract code isn't whitelisted" }
-        }
 
-
-        let interactions = await fastify.syncToSecureHeight(request.query.contractId, null)
-
-        return {
-            "paging": { "total": interactions.length, "limit": 5000, "items": interactions.length, "page": 1, "pages": 1 },
-            interactions: interactions.reverse()
-        }
-
-
-
-        // console.log(await thirdEm.simulateContract({
-        //     contractId: request.query.id,
-        //     maybeContractSource: { contractType: 0, contractSrc: Buffer.from(contractCode) },
-        //     interactions: [],
-        //     contractInitState: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url")).value, 'base64url').toString(),
-        //     maybeConfig: {
-        //         host: "127.0.0.1",
-        //         port: 8181,
-        //         protocol: "http",
-        //     },
-        //     maybeCache: false,
-        //     maybeBundledContract: false,
-        //     maybeSettings: null,
-        //     maybeExmContext: {}
-
-        // }))
-    })
 }
