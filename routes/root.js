@@ -8,7 +8,7 @@ module.exports = async function (fastify, opts) {
     if (tx.status != 200 && tx.status != 202) {
       return { error: "Invalid status from gateway" }
     }
-    reply.raw.writeHead(tx.status, tx.headers)
+    reply.raw.writeHead(tx.status, { ...Object.fromEntries(tx.headers.entries()), "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "*", "Access-Control-Allow-Headers": "*", })
     Readable.from(tx.body).pipe(reply.raw)
   })
 }
