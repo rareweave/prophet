@@ -4,7 +4,8 @@ const fs = require("fs")
 const { fetch } = require("undici")
 const Arweave = require("arweave")
 const Account = require("arweave-account");
-const { WarpFactory, ContractDefinitionLoader } = require("warp-contracts")
+const { WarpFactory, ContractDefinitionLoader, defaultCacheOptions } = require("warp-contracts")
+const { LmdbCache } = require("warp-contracts-lmdb");
 const config = require("json5").parse(fs.readFileSync("./config.json5"))
 const arweave = Arweave.init({
     host: "127.0.0.1",
@@ -23,10 +24,26 @@ module.exports = async function (fastify, opts) {
             protocol: "http"
         }
     })
-    const warp = WarpFactory.forMainnet({
-
-        inMemory: true,
-    }, false, arweave)
+    const warp = WarpFactory.forMainnet(defaultCacheOptions, false, arweave)
+        .useStateCache(new LmdbCache({
+            ...defaultCacheOptions,
+            dbLocation: `./warp-cache/state`
+        }, {
+            maxEntriesPerContract: 100,
+            minEntriesPerContract: 10
+        }
+        ))
+        .useContractCache(
+            // Contract cache
+            new LmdbCache({
+                ...defaultCacheOptions,
+                dbLocation: `./warp-cache/contracts`
+            }),
+            // Source cache
+            new LmdbCache({
+                ...defaultCacheOptions,
+                dbLocation: `./warp-cache/src`
+            }));
     warp.definitionLoader.baseUrl = `http://localhost:${config.port}`
     warp.interactionsLoader.delegate.baseUrl = `http://localhost:${config.port}`
 
