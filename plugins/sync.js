@@ -15,6 +15,12 @@ const arweave = Arweave.init({
   protocol: "http"
 })
 module.exports = fp(async function (fastify, opts) {
+  let peers = [...(await fastify.db.query(`SELECT id FROM peers`))[0]?.result?.map(r => r.id), config.arweaveGateway]
+  setInterval(updatePeers, 50000)
+  async function updatePeers() {
+    peers.forEach(async peer => {
+    })
+  }
   async function syncToSecureHeight(id, contractInfo) {
     let warpSequencerTxs = (await fetch(`https://gateway.warp.cc/gateway/v2/interactions-sort-key?contractId=` + id).then(r => r.json())).interactions.map(i => i.interaction)
     const networkInfo = await fetch('http://127.0.0.1:' + config.port + "/info").then(res => res.json())
@@ -83,6 +89,8 @@ module.exports = fp(async function (fastify, opts) {
   async function useTimedCache(id, type, cacheBringer, time = null) {
     if (!id || !cacheBringer) { return null }
     let cache = (await fastify.db.select(type + ":`" + id + "`").catch(e => { console.log(e); return [] }))[0]
+    if ((time || 10001) > 10000 && cache.error) { time = 10000 }
+    console.log((Date.now() - cache?.timestamp))
     if (!cache) {
       let freshResult = await cacheBringer()
       fastify.db.create(type + ":`" + id + "`", { ...freshResult, timestamp: Date.now() }).catch(e => { console.log(e); return null })

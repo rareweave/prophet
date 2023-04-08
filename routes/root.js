@@ -15,4 +15,7 @@ module.exports = async function (fastify, opts) {
     })
     return Buffer.from(await tx.arrayBuffer())
   })
+  fastify.post("/tx", (request, reply) => {
+
+  })
 }
