@@ -19,6 +19,8 @@ module.exports = fp(async function (fastify, opts) {
   setInterval(updatePeers, 50000)
   async function updatePeers() {
     peers.forEach(async peer => {
+      let subpeers = await fetch(`http://${peer}/peers`).then(res => res.json()).catch((e) => null)
+      console.log("subpeers", subpeers)
     })
   }
   async function syncToSecureHeight(id, contractInfo) {
@@ -89,8 +91,7 @@ module.exports = fp(async function (fastify, opts) {
   async function useTimedCache(id, type, cacheBringer, time = null) {
     if (!id || !cacheBringer) { return null }
     let cache = (await fastify.db.select(type + ":`" + id + "`").catch(e => { console.log(e); return [] }))[0]
-    if ((time || 10001) > 10000 && cache.error) { time = 10000 }
-    console.log((Date.now() - cache?.timestamp))
+    if ((time || 10001) > 10000 && cache?.error) { time = 10000 }
     if (!cache) {
       let freshResult = await cacheBringer()
       fastify.db.create(type + ":`" + id + "`", { ...freshResult, timestamp: Date.now() }).catch(e => { console.log(e); return null })

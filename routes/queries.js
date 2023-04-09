@@ -30,4 +30,15 @@ module.exports = async function (fastify, opts) {
             ${request.query.search ? 'AND (state.description ~ ' + search + ' OR state.name ~ ' + search + ')' : ''}
             ${request.query.forSaleOnly ? 'AND state.forSale = true' : ''} ORDER BY timestamp DESC LIMIT 100;`))[0]
     })
+
+    fastify.get('/collections', async function (request, reply) {
+        let ownedBy = JSON.parse(JSON.stringify(`"${request.query.ownedBy}"`))
+        let search = JSON.parse(JSON.stringify(`"${request.query.search}"`))
+
+
+        return (await fastify.db.query(`SELECT contractTxId, timestamp, state, owner FROM contract WHERE ${JSON.stringify(config.collectionSrcIds)
+            } CONTAINS sourceId ${request.query.ownedBy ? 'AND state.admins CONTAINS ' + ownedBy : ''} 
+            ${request.query.search ? 'AND (state.description ~ ' + search + ' OR state.name ~ ' + search + ')' : ''}
+            ORDER BY timestamp DESC LIMIT 100;`))[0]
+    })
 }
