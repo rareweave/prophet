@@ -15,7 +15,21 @@ module.exports = async function (fastify, opts) {
     })
     return Buffer.from(await tx.arrayBuffer())
   })
-  fastify.post("/tx", (request, reply) => {
-
+  fastify.post("/tx", async (request, reply) => {
+    let peers = [...(await fastify.kv.get("peers") || []), config.arweaveGateway].map(p => (p.startsWith("http://") || p.startsWith("https://")) ? p : `http://${p}`)
+    peers.map(async peer => {
+      fetch(`${peer}/tx`, { method: 'POST', headers: { 'Content-Type': "application/json" }, body: JSON.stringify(request.body) }).catch(e => null)
+    })
+    reply.status(200)
+    return "OK"
+  })
+  fastify.get(`/wallet/:wallet/balance`, async (request, reply) => {
+    return fetch(`${config.arweaveGateway}/wallet/${request.params.wallet}/balance`).then(res => res.text()).catch(e => 0)
+  })
+  fastify.get(`/price/:dataSize/:address`, async (request, reply) => {
+    return fetch(`${config.arweaveGateway}/price/${request.params.dataSize}/${request.params.address}`).then(res => res.text()).catch(e => 0)
+  })
+  fastify.get(`/price/:dataSize`, async (request, reply) => {
+    return fetch(`${config.arweaveGateway}/price/${request.params.dataSize}`).then(res => res.text()).catch(e => 0)
   })
 }

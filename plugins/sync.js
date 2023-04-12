@@ -15,13 +15,18 @@ const arweave = Arweave.init({
   protocol: "http"
 })
 module.exports = fp(async function (fastify, opts) {
-  let peers = [...(await fastify.db.query(`SELECT id FROM peers`))[0]?.result?.map(r => r.id), config.arweaveGateway]
+
   setInterval(updatePeers, 50000)
   async function updatePeers() {
-    peers.forEach(async peer => {
-      let subpeers = await fetch(`http://${peer}/peers`).then(res => res.json()).catch((e) => null)
-      console.log("subpeers", subpeers)
-    })
+    let peers = [...(await fastify.kv.get("peers") || []), config.arweaveGateway]
+    let newPeers = []
+    await Promise.all(peers.map(async peer => {
+      let subpeers = await fetch(`${peer}/peers`).then(res => res.json()).catch((e) => [])
+      // peers = [...new Set([...peers, ...subpeers])]
+      newPeers.push(subpeers.map(p => `http://${p}`))
+    }))
+    await fastify.kv.put("peers", new Set([...peers, ...newPeers.reduce((pv, cv) => [...pv, ...cv], [])]))
+
   }
   async function syncToSecureHeight(id, contractInfo) {
     let warpSequencerTxs = (await fetch(`https://gateway.warp.cc/gateway/v2/interactions-sort-key?contractId=` + id).then(r => r.json())).interactions.map(i => i.interaction)
