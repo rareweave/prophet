@@ -147,7 +147,7 @@ module.exports = async function (fastify, opts) {
                 sourceId: contractInfo.srcTxId,
 
             }
-        }, 50000)
+        }, 20000)
 
 
     })
