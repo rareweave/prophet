@@ -32,7 +32,7 @@ module.exports = async function (fastify, opts) {
         return (await fastify.db.query(`SELECT contractTxId, timestamp, state, owner FROM nfts WHERE ${JSON.stringify(config.nftSrcIds)
             } CONTAINS sourceId ${request.query.ownedBy ? 'AND state.owner = ' + ownedBy : ''} 
             ${request.query.search ? 'AND (state.description ~ ' + search + ' OR state.name ~ ' + search + ')' : ''}
-            ${request.query.forSaleOnly ? 'AND state.forSale = true' : ''} ${collectionId ? 'AND ' + JSON.stringify(collection?.state?.items || []) + ' CONTAINS contractTxId' : ''} ORDER BY timestamp DESC LIMIT 100;`))[0]
+            ${request.query.forSaleOnly ? 'AND state.forSale = true' : ''} ${request.query.collection ? 'AND ' + JSON.stringify(collection?.state?.items || []) + ' CONTAINS contractTxId' : ''} ORDER BY timestamp DESC LIMIT 100;`))[0]
     })
 
     fastify.get('/collections', async function (request, reply) {
