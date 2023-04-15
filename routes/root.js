@@ -28,16 +28,17 @@ module.exports = async function (fastify, opts) {
     peers.map(async peer => {
       fetch(`${peer}/tx`, { method: 'POST', headers: { 'Content-Type': "application/json" }, body: JSON.stringify(request.body) }).catch(e => null)
     })
-    reply.header("Acess-Control-Allow-Origin", "*")
+    reply.header("Access-Control-Allow-Origin", "*")
     reply.status(200)
     return "OK"
   })
   fastify.post("/chunk", async (request, reply) => {
-    let peers = [...(await fastify.kv.get("peers") || []), config.arweaveGateway].map(p => (p.startsWith("http://") || p.startsWith("https://")) ? p : `http://${p}`)
-    peers.map(async peer => {
-      fetch(`${peer}/tx`, { method: 'POST', headers: { 'Content-Type': "application/json" }, body: JSON.stringify(request.body) }).catch(e => null)
-    })
-    reply.header("Acess-Control-Allow-Origin", "*")
+    reply.header("Access-Control-Allow-Origin", "*")
+    console.log(request.body)
+    let resp = await fetch(`${config.arweaveGateway}/chunk`, { method: 'POST', headers: { 'Content-Type': "application/json" }, body: JSON.stringify(request.body) }).catch(e => null)
+    reply.header("Content-Type", resp.headers.get("Content-Type"))
+    return Buffer.from(await resp.arrayBuffer())
+
     reply.status(200)
     return "OK"
   })
