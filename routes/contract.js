@@ -107,8 +107,8 @@ module.exports = async function (fastify, opts) {
                     unsafeClient: "allow", waitForConfirmation: false,
                 });
                 let state = (await contractInstance.readState()).cachedValue.state
-                let ownerMetaweaveAccount = await accountTools.get(state.owner)
-                let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).then(res => res.json()))?.domain
+                let ownerMetaweaveAccount = await accountTools.get(state.owner).catch(e => null)
+                let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).catch(e => ({ domain: null })).then(res => res.json()))?.domain
 
                 return {
                     "status": "evaluated",
