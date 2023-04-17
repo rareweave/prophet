@@ -108,14 +108,14 @@ module.exports = async function (fastify, opts) {
                 });
                 let state = (await contractInstance.readState()).cachedValue.state
                 let ownerMetaweaveAccount = await accountTools.get(state.owner).catch(e => null)
-                let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${ownerMetaweaveAccount.addr}`).catch(e => ({ domain: null })).then(res => res.json()))?.domain
+                let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${state.owner}`).catch(e => ({ domain: null })).then(res => res.json()))?.domain
 
                 return {
                     "status": "evaluated",
                     contractTxId: request.query.id,
                     manifest: contractInfo.manifest,
                     state,
-                    owner: { address: ownerMetaweaveAccount.addr, account: ownerMetaweaveAccount, ansName: ownerAnsName },
+                    owner: { address: state.owner, account: ownerMetaweaveAccount, ansName: ownerAnsName },
 
                     sourceId: codeId,
 
