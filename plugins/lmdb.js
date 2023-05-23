@@ -12,4 +12,7 @@ module.exports = fp(async function (fastify, opts) {
         const kv = await LmDB.open("prophetkv", { compression: false })
         fastify.decorate('kv', kv)
     }
+}, {
+    name: 'lmdb',
+    dependencies: []
 })

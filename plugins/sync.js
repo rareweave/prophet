@@ -29,14 +29,19 @@ module.exports = fp(async function (fastify, opts) {
 
   }
   async function syncToSecureHeight(id, contractInfo) {
+
     let warpSequencerTxs = (await fetch(`https://gateway.warp.cc/gateway/v2/interactions-sort-key?contractId=` + id).then(r => r.json())).interactions.map(i => i.interaction)
+
     const networkInfo = await fetch('http://127.0.0.1:' + config.port + "/info").then(res => res.json())
+
     let height = networkInfo.height
     let fetchHeight = height - 10
     let pageInfo = { hasNextPage: true }
     let transactions = []
+
     while (pageInfo.hasNextPage) {
-      let gqlreply = await fetch('http://localhost:' + config.port + '/graphql', txQuery(fetchHeight, [["Contract", id]])).then(res => res.json()).catch(e => pageInfo.hasNextPage = false)
+      let timeToFetchFromWarp = Date.now()
+      let gqlreply = await fetch(config.arweaveGQL, txQuery(fetchHeight, [["Contract", id]])).then(res => res.json()).catch(e => pageInfo.hasNextPage = false)
 
       pageInfo = gqlreply.data.transactions.pageInfo
       // let timestamps = await fetch('https://node2.bundlr.network/graphql', bundlrTimestampsQuery(gqlreply.data.transactions.edges.map(node => node.node.id))).then(res => res.json()).catch(e => [])
@@ -45,6 +50,7 @@ module.exports = fp(async function (fastify, opts) {
 
       transactions.push(...gqlreply.data.transactions.edges.map(e => e.node))
     }
+
     transactions = await Promise.all(transactions.filter(tx => !warpSequencerTxs.find(wtx => wtx.id == tx.id)).map(async tx => {
 
       return {
@@ -53,8 +59,10 @@ module.exports = fp(async function (fastify, opts) {
         confirmationStatus: "confirmed"
       }
     }))
+
     warpSequencerTxs.unshift(...transactions)
-    return warpSequencerTxs
+    fastify.db.query(`INSERT INTO contractInteractions $interactions;`, { contractId: id, interactions: ([...warpSequencerTxs, ...transactions]).map(i => ({ contractId: id, ...i, id: "contractInteractions:`" + i.id + "`" })) })
+    return [...warpSequencerTxs, ...transactions]
     // const networkInfo = await fetch('http://127.0.0.1:' + config.port + "/info").then(res => res.json())
     // let height = networkInfo.height
     // let secureHeight = height - 10
@@ -95,15 +103,11 @@ module.exports = fp(async function (fastify, opts) {
   }
   async function useTimedCache(id, type, cacheBringer, time = null) {
     if (!id || !cacheBringer) { return null }
-    let cache = (await fastify.db.select(type + ":`" + id + "`").catch(e => { console.log(e); return [] }))[0]
+    let cache = (await fastify.db.select(type + ":`" + id + "`").catch(e => { return [] }))[0]
     if ((time || 10001) > 10000 && cache?.error) { time = 10000 }
-    if (!cache) {
+    if (!cache || (time && ((Date.now() - cache?.timestamp) > time))) {
       let freshResult = await cacheBringer()
-      fastify.db.create(type + ":`" + id + "`", { ...freshResult, timestamp: Date.now() }).catch(e => { console.log(e); return null })
-      return freshResult
-    } else if (time && ((Date.now() - cache?.timestamp) > time)) {
-      let freshResult = await cacheBringer()
-      fastify.db.update(type + ":`" + id + "`", { ...freshResult, timestamp: Date.now() }).catch(e => { console.log(e); return null })
+      fastify.db.query(`INSERT INTO ${type} $data;`, { data: { id: type + ":`" + id + "`", ...freshResult, timestamp: Date.now() } })
       return freshResult
     } else {
       return cache

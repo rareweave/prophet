@@ -20,7 +20,6 @@ module.exports = async function (fastify, opts) {
 
 
     let interactions = await fastify.syncToSecureHeight(request.query.contractId, null)
-
     return {
       "paging": { "total": interactions.length, "limit": 5000, "items": interactions.length, "page": 1, "pages": 1 },
       interactions: interactions.reverse()

@@ -72,6 +72,14 @@ module.exports = async function (fastify, opts) {
 
         let contractCode = await fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.text()).catch(e => console.log(e))
         // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
+        fastify.db.query(`INSERT INTO indexedContracts $contractInfo;`, {
+            contractInfo: {
+                lastUpdateBlock: 0,
+                id: "indexedContracts:`" + request.query.txId + "`",
+                contractId: request.query.txId,
+                srcTxId: Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()
+            }
+        })
 
         return {
             bundlerTxId: null,
@@ -98,6 +106,7 @@ module.exports = async function (fastify, opts) {
             return
         }
         let codeId = Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()
+        console.log(config.nftSrcIds, codeId)
         if (config.nftSrcIds.includes(codeId)) {
             await fastify.timedCache(request.query.id, "nfts", async () => {
 
