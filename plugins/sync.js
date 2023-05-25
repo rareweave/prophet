@@ -28,30 +28,13 @@ module.exports = fp(async function (fastify, opts) {
     await fastify.kv.put("peers", new Set([...peers, ...newPeers.reduce((pv, cv) => [...pv, ...cv], [])]))
 
   }
-  async function syncToSecureHeight(id, contractInfo) {
+  async function fetchInteractions(id, contractInfo) {
 
-    let warpSequencerTxs = (await fetch(`https://gateway.warp.cc/gateway/v2/interactions-sort-key?contractId=` + id).then(r => r.json())).interactions.map(i => i.interaction)
 
-    const networkInfo = await fetch('http://127.0.0.1:' + config.port + "/info").then(res => res.json())
+    let transactions = (await fastify.db.query("SELECT * FROM interactions WHERE contract = $contract ORDER BY block.height ASC;", { contract: id }))[0].result || []
 
-    let height = networkInfo.height
-    let fetchHeight = height - 10
-    let pageInfo = { hasNextPage: true }
-    let transactions = []
 
-    while (pageInfo.hasNextPage) {
-      let timeToFetchFromWarp = Date.now()
-      let gqlreply = await fetch(config.arweaveGQL, txQuery(fetchHeight, [["Contract", id]])).then(res => res.json()).catch(e => pageInfo.hasNextPage = false)
-
-      pageInfo = gqlreply.data.transactions.pageInfo
-      // let timestamps = await fetch('https://node2.bundlr.network/graphql', bundlrTimestampsQuery(gqlreply.data.transactions.edges.map(node => node.node.id))).then(res => res.json()).catch(e => [])
-      // timestamps = Object.fromEntries(timestamps.data.transactions.edges.map(ts => [ts.node.id, ts.node.timestamp]))
-      // gqlreply.data.transactions.edges = gqlreply.data.transactions.edges.map(edge => ({ node: { ...edge.node, timestamp: timestamps[edge.node.id] || "0" } }))
-
-      transactions.push(...gqlreply.data.transactions.edges.map(e => e.node))
-    }
-
-    transactions = await Promise.all(transactions.filter(tx => !warpSequencerTxs.find(wtx => wtx.id == tx.id)).map(async tx => {
+    transactions = await Promise.all(transactions.map(async tx => {
 
       return {
         ...tx,
@@ -59,46 +42,8 @@ module.exports = fp(async function (fastify, opts) {
         confirmationStatus: "confirmed"
       }
     }))
+    return transactions
 
-    warpSequencerTxs.unshift(...transactions)
-    fastify.db.query(`INSERT INTO contractInteractions $interactions;`, { contractId: id, interactions: ([...warpSequencerTxs, ...transactions]).map(i => ({ contractId: id, ...i, id: "contractInteractions:`" + i.id + "`" })) })
-    return [...warpSequencerTxs, ...transactions]
-    // const networkInfo = await fetch('http://127.0.0.1:' + config.port + "/info").then(res => res.json())
-    // let height = networkInfo.height
-    // let secureHeight = height - 10
-    // let pageInfo = { hasNextPage: true }
-    // let transactions = []
-    // while (pageInfo.hasNextPage) {
-    //   let gqlreply = await fetch('http://localhost:' + config.port + '/graphql', txQuery(secureHeight, contractInfo?.syncHeight, [["Contract", id]])).then(res => res.json()).catch(e => pageInfo.hasNextPage = false)
-    //   pageInfo = gqlreply.data.transactions.pageInfo
-    //   // let timestamps = await fetch('https://node2.bundlr.network/graphql', bundlrTimestampsQuery(gqlreply.data.transactions.edges.map(node => node.node.id))).then(res => res.json()).catch(e => [])
-    //   // timestamps = Object.fromEntries(timestamps.data.transactions.edges.map(ts => [ts.node.id, ts.node.timestamp]))
-    //   // gqlreply.data.transactions.edges = gqlreply.data.transactions.edges.map(edge => ({ node: { ...edge.node, timestamp: timestamps[edge.node.id] || "0" } }))
-    //   gqlreply.data.transactions.edges = gqlreply.data.transactions.edges.map(edge => {
-    //     edge = {
-    //       node: {
-    //         ...edge.node, block: { height: edge.node.block.height.toString(), timestamp: edge.node.block.timestamp.toString(), indepHash: edge.node.block.id, },
-    //         reward: edge.node.fee.winston
-    //       }
-    //     }
-    //     delete edge.node.bundledIn
-    //     delete edge.node.fee
-
-    //     return edge
-    //   })
-    //   transactions.push(...gqlreply.data.transactions.edges)
-    // }
-    // transactions = transactions.map(tx => ({ ...tx.node, owner: tx.node.owner.address, quantity: tx.node.quantity.winston, input: tx.node.tags.find(t => t.name == "Input").value })).filter(tx => !(contractInfo?.processed || []).includes(tx.id))
-    // let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${id}`).then(res => res.json()).catch(e => null)
-    // let initState;
-    // if (!contractInfo?.cachedState) {
-    //   initState = Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url")).value, 'base64url').toString()
-    // } else {
-    //   initState = Buffer.from(contractInfo.cachedState, 'base64url').toString()
-    // }
-    // let contractCode = await fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.text()).catch(e => console.log(e))
-
-    // return transactions
 
   }
   async function useTimedCache(id, type, cacheBringer, time = null) {
@@ -114,7 +59,7 @@ module.exports = fp(async function (fastify, opts) {
     }
   }
 
-  fastify.decorate("syncToSecureHeight", syncToSecureHeight)
+  fastify.decorate("fetchInteractions", fetchInteractions)
   fastify.decorate("timedCache", useTimedCache)
 })
 const txQuery = (min, tags) => {

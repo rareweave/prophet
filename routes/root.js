@@ -46,6 +46,10 @@ module.exports = async function (fastify, opts) {
     reply.header("Acess-Control-Allow-Origin", "*")
     return fetch(`${config.arweaveGateway}/wallet/${request.params.wallet}/balance`).then(res => res.text()).catch(e => 0)
   })
+  fastify.get(`/info`, async (request, reply) => {
+    reply.header("Acess-Control-Allow-Origin", "*")
+    return await fastify.timedCache("info", "info", async () => await fetch(`${config.arweaveGateway}/info`).then(res => res.text()).catch(e => 0), 100000)
+  })
   fastify.get(`/price/:dataSize/:address`, async (request, reply) => {
     reply.header("Acess-Control-Allow-Origin", "*")
     return fetch(`${config.arweaveGateway}/price/${request.params.dataSize}/${request.params.address}`).then(res => res.text()).catch(e => 0)

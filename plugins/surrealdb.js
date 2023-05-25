@@ -16,4 +16,7 @@ module.exports = fp(async function (fastify, opts) {
     await db.use('prophet', 'prophet');
 
     fastify.decorate("db", db)
+}, {
+    name: 'surrealdb',
+    dependencies: []
 })
