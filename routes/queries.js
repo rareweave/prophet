@@ -26,16 +26,16 @@ module.exports = async function (fastify, opts) {
         let collectionId = request.query.collection
         let startFrom = parseInt(request.query.startFrom) || 0
         let collection;
-        if (collectionId) {
-            collection = (await fastify.db.query(`SELECT contractTxId, timestamp, state FROM contract:\`${collectionId}\`;`, { collectionSrcIds: config.collectionSrcIds, collectionId: collectionId }).catch(e => []))[0]?.result[0] || {}
-        }
+        // if (collectionId) {
+        //     collection = (await fastify.db.query(`SELECT contractTxId, timestamp, state FROM contract:\`${collectionId}\`;`, { collectionSrcIds: config.collectionSrcIds, collectionId: collectionId }).catch(e => []))[0]?.result[0] || {}
+        // }
 
         let conditions = [ownedBy ? 'state.owner = $ownedBy' : '',
         search ? '(state.description ~ $search OR state.name ~ $search)' : '',
         request.query.forSaleOnly ? 'state.forSale = true' : '',
         collectionId ? `(contract:\`${collectionId}\`.state.items) CONTAINS contractTxId` : '']
         conditions = conditions.filter(c => c).map((c, ci) => `${ci ? 'AND' : 'WHERE'} ${c}`).join(" ")
-        return (await fastify.db.query(`SELECT contractTxId, timestamp, state, owner FROM nfts ${conditions};`, { ownedBy: ownedBy, search: search, forSaleOnly: request.query.forSaleOnly, collectionSrcIds: config.collectionSrcIds, collectionId: collectionId, collectionData: collection || [] }))[0]
+        return (await fastify.db.query(`SELECT contractTxId, timestamp, state, owner FROM nfts ${conditions} LIMIT 100 START ${startFrom};`, { ownedBy: ownedBy, search: search, forSaleOnly: request.query.forSaleOnly, collectionSrcIds: config.collectionSrcIds, collectionId: collectionId, collectionData: collection || [] }))[0]
     })
     fastify.get("/contract-interactions/:id", async (request, reply) => {
         let resp = (await fastify.db.query(`SELECT * from contractInteractions WHERE contractId = $contractId`, { contractId: request.params.id }).catch(e => []))[0]?.result || []
