@@ -1,8 +1,6 @@
 const fp = require('fastify-plugin')
 const config = require("json5").parse(require("fs").readFileSync("./config.json5"))
 const crypto = require("crypto")
-const thirdEm = require("@three-em/node/index")
-const { fetch } = require('undici')
 const Arweave = require("arweave")
 /**
  * This plugins adds some utilities to handle http errors
@@ -21,7 +19,7 @@ module.exports = fp(async function (fastify, opts) {
     let peers = [...(await fastify.kv.get("peers") || []), config.arweaveGateway]
     let newPeers = []
     await Promise.all(peers.map(async peer => {
-      let subpeers = await fetch(`${peer}/peers`).then(res => res.json()).catch((e) => [])
+      let subpeers = await fastify.fetch(`${peer}/peers`).then(res => res.json()).catch((e) => [])
       // peers = [...new Set([...peers, ...subpeers])]
       newPeers.push(subpeers.map(p => `http://${p}`))
     }))

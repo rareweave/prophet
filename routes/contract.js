@@ -1,7 +1,6 @@
 
 
 const fs = require("fs")
-const { fetch } = require("undici")
 const Arweave = require("arweave")
 const Account = require("arweave-account");
 const { WarpFactory, ContractDefinitionLoader, defaultCacheOptions, LoggerFactory } = require("warp-contracts")
@@ -54,7 +53,7 @@ module.exports = async function (fastify, opts) {
             reply.status(404)
             return { error: "No contract specified" }
         }
-        let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.txId}`).then(res => res.json()).catch(e => console.log(e))
+        let contractInitTx = await fastify.fetch(`http://127.0.0.1:${config.port}/tx/${request.query.txId}`).then(res => res.json()).catch(e => console.log(e))
 
         if (!contractInitTx || contractInitTx.error || !contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url"))) {
             reply.status(404)
@@ -68,9 +67,9 @@ module.exports = async function (fastify, opts) {
             JSON.parse(Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Init-State").toString("base64url"))?.value, 'base64url').toString()) :
             await fetch(`http://127.0.0.1:${config.port}/${request.query.txId}`).then(res => res.json()).catch(e => null)
 
-        let contractCodeTx = await fetch(`http://127.0.0.1:${config.port}/tx/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.json()).catch(e => console.log(e))
+        let contractCodeTx = await fastify.fetch(`http://127.0.0.1:${config.port}/tx/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.json()).catch(e => console.log(e))
 
-        let contractCode = await fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.text()).catch(e => console.log(e))
+        let contractCode = await fastify.fetch(`http://127.0.0.1:${config.port}/${Buffer.from(contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url")).value, 'base64url').toString()}`).then(res => res.text()).catch(e => console.log(e))
         // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
         fastify.db.query(`INSERT INTO indexedContracts $contractInfo;`, {
             contractInfo: {
@@ -100,7 +99,7 @@ module.exports = async function (fastify, opts) {
             return { error: "No contract specified" }
         }
         reply.send("Scheduled")
-        let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.id}`).then(res => res.json()).catch(e => null)
+        let contractInitTx = await fastify.fetch(`http://127.0.0.1:${config.port}/tx/${request.query.id}`).then(res => res.json()).catch(e => null)
         if (!contractInitTx || contractInitTx.error || !contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url"))) {
 
             return
@@ -110,14 +109,14 @@ module.exports = async function (fastify, opts) {
         if (config.nftSrcIds.includes(codeId)) {
             await fastify.timedCache(request.query.id, "nfts", async () => {
 
-                let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))       // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
+                let contractInfo = await fastify.fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))       // let contractInfo = await fastify.db.select("contractInfo:" + request.query.contractId).catch(e => null)
 
                 let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
                     unsafeClient: "allow", waitForConfirmation: false,
                 });
                 let state = (await contractInstance.readState()).cachedValue.state
                 let ownerMetaweaveAccount = await accountTools.get(state.owner).catch(e => null)
-                let ownerAnsName = (await fetch(`https://ans-resolver.herokuapp.com/resolve/${state.owner}`).catch(e => ({ domain: null })).then(res => res.json()))?.domain
+                let ownerAnsName = (await fastify.fetch(`https://ans-resolver.herokuapp.com/resolve/${state.owner}`).catch(e => ({ domain: null })).then(res => res.json()))?.domain
 
                 return {
                     "status": "evaluated",
@@ -140,7 +139,7 @@ module.exports = async function (fastify, opts) {
             return { error: "No contract specified" }
         }
         return await fastify.timedCache(request.query.id, "contract", async () => {
-            let contractInfo = await fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))
+            let contractInfo = await fastify.fetch(`http://127.0.0.1:${config.port}/gateway/contract?txId=${request.query.id}`).then(res => res.json()).catch(e => console.log(e))
             if (!contractInfo) { return "Error fetching contract" }
             let contractInstance = warp.contract(request.query.id).setEvaluationOptions({
                 unsafeClient: "allow", waitForConfirmation: false,

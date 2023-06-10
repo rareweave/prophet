@@ -8,7 +8,7 @@ module.exports = async function (fastify, opts) {
       reply.status(404)
       return { error: "No contract specified" }
     }
-    let contractInitTx = await fetch(`http://127.0.0.1:${config.port}/tx/${request.query.contractId}`).then(res => res.json()).catch(e => null)
+    let contractInitTx = await fastify.fetch(`http://127.0.0.1:${config.port}/tx/${request.query.contractId}`).then(res => res.json()).catch(e => null)
     if (!contractInitTx || contractInitTx.error || !contractInitTx.tags.find(tag => tag.name == Buffer.from("Contract-Src").toString("base64url"))) {
       reply.status(404)
       return { error: "No contract found" }

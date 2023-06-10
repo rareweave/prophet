@@ -7,7 +7,7 @@ module.exports = async function (fastify, opts) {
 
         if (request.method == "OPTIONS") { return true }
 
-        let tx = await fetch(config.arweaveGQL, { method: request.method, body: JSON.stringify(request.body), headers: { "Content-type": "application/json" } }).catch(e => console.log(e)).then(res => res.json())
+        let tx = await fastify.fetch(config.arweaveGQL, { method: request.method, body: JSON.stringify(request.body), headers: { "Content-type": "application/json" } }).catch(e => console.log(e)).then(res => res.json())
 
 
         return tx

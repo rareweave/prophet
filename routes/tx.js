@@ -9,7 +9,7 @@ module.exports = async function (fastify, opts) {
             let txheaders = await fetchTxHeaders(request.params.id);
 
             if (!txheaders || !txheaders?.id) {
-                let txFromWarp = await fetch(`https://gateway.warp.cc/gateway/contract?txId=${request.params.id}`)
+                let txFromWarp = await fastify.fetch(`https://gateway.warp.cc/gateway/contract?txId=${request.params.id}`)
                 let txFromWarpContent = await txFromWarp.json().catch(res => ({ message: "Error fetching from warp" }))
 
                 if (txFromWarpContent.message || txFromWarp.status == 404) {
@@ -43,7 +43,7 @@ module.exports = async function (fastify, opts) {
 async function fetchTxHeaders(id) {
 
 
-    let gqlreply = await fetch('http://localhost:' + config.port + '/graphql', {
+    let gqlreply = await fastify.fetch('http://localhost:' + config.port + '/graphql', {
         method: "POST", headers: { "Content-type": "application/json" },
         body: JSON.stringify({
             operationName: null,
